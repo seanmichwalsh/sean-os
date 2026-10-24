@@ -4,6 +4,8 @@ output_dir := f"{{justfile_dir()}}/.output"
 container_file := f"{{output_dir}}/Containerfile"
 recipe_file := f"{{justfile_dir()}}/recipes/recipe.yml"
 
+image_name := "sean-os"
+
 _init_output_dir:
     #!/usr/bin/env bash
     set -euo pipefail
@@ -64,3 +66,16 @@ build-container:
         --run-driver podman \
         --tempdir {{output_dir}} \
         {{recipe_file}}
+
+# Run bootc container image interactively.
+[group('container')]
+run-container:
+    #!/usr/bin/env bash
+    set -euo pipefail
+
+    if ! podman image exists localhost/{{image_name}}:latest; then
+        echo "ERROR: Image 'localhost/{{image_name}}:latest' not found." \
+             "Build it with 'just build-container'."
+        exit 1
+    fi
+    podman run -it localhost/{{image_name}}:latest /bin/bash
