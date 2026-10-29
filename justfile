@@ -36,7 +36,7 @@ install-deps:
         exit 1
     fi
 
-    for pkg in podman image-builder; do
+    for pkg in podman image-builder libvirt virt-install; do
         if ! command -v $pkg >/dev/null 2>&1; then
             echo "Installing RPM package $pkg..."
             sudo dnf install $pkg
@@ -107,3 +107,21 @@ build-qcow2:
         qcow2
 
     sudo chown -R $USER:$USER {{output_dir}}
+    sudo cp {{output_dir}}/{{image_name}}.qcow2 /var/lib/libvirt/images
+
+# Boot a qcow2 image in a QEMU VM.
+[group('vm')]
+spawn-vm:
+    #!/usr/bin/env bash
+    set -euo pipefail
+
+    virt-install --connect="qemu:///system" \
+        --name "{{image_name}}" \
+        --os-variant "generic" \
+        --vcpus "4" \
+        --memory "4096" \
+        --disk "size=20,backing_store=/var/lib/libvirt/images/{{image_name}}.qcow2" \
+        --network default \
+        --import \
+        --graphics spice \
+        --autoconsole graphical
