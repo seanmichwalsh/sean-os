@@ -5,6 +5,7 @@ container_file := f"{{output_dir}}/Containerfile"
 recipe_file := f"{{justfile_dir()}}/recipes/recipe.yml"
 
 image_name := "sean-os"
+build_image := "quay.io/fedora/fedora-bootc:44"
 
 _init_output_dir:
     #!/usr/bin/env bash
@@ -35,12 +36,14 @@ install-deps:
         exit 1
     fi
 
-    if ! command -v podman >/dev/null 2>&1; then
-        echo "Installing podman..."
-        sudo dnf install podman
-    fi
+    for pkg in podman image-builder; do
+        if ! command -v $pkg >/dev/null 2>&1; then
+            echo "Installing RPM package $pkg..."
+            sudo dnf install $pkg
+        fi
+    done
     if ! (cargo install --list | grep blue-build >/dev/null 2>&1); then
-        echo "Installing blue-build..."
+        echo "Installing cargo crate blue-build..."
         cargo install blue-build
     fi
     echo "All dependencies installed."
@@ -79,3 +82,28 @@ run-container:
         exit 1
     fi
     podman run -it localhost/{{image_name}}:latest /bin/bash
+
+# Build a qcow2 image from the container image.
+[group('vm')]
+build-qcow2:
+    #!/usr/bin/env bash
+    set -euo pipefail
+
+    $(just _init_output_dir)
+
+    # Rootless builds are supported by image-builder via `--in-vm` flag, but
+    # currently fail on Fedora hosts enforcing SELinux.
+    #
+    # Separate build image is required since image-builder defaults to using
+    # target image as the build container. Secureblue's container policy rejects
+    # transport layer of type 'containers-storage' entirely, which prevents the
+    # build container from loading target image as an overlay.
+    sudo image-builder build \
+        --bootc-build-ref {{build_image}} \
+        --bootc-ref localhost/{{image_name}}:latest \
+        --bootc-default-fs btrfs \
+        --output-name "{{image_name}}.qcow2" \
+        --output-dir {{output_dir}} \
+        qcow2
+
+    sudo chown -R $USER:$USER {{output_dir}}
