@@ -37,7 +37,7 @@ install-deps:
     fi
 
     for pkg in podman image-builder libvirt virt-install; do
-        if ! command -v $pkg >/dev/null 2>&1; then
+        if ! dnf list --installed $pkg >/dev/null 2>&1; then
             echo "Installing RPM package $pkg..."
             sudo dnf install $pkg
         fi
