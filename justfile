@@ -1,10 +1,7 @@
 set default-list := true
 
 output_dir := f"{{justfile_dir()}}/.output"
-container_file := f"{{output_dir}}/Containerfile"
-recipe_file := f"{{justfile_dir()}}/recipes/recipe.yml"
-
-image_name := "sean-os"
+image_name := "sean-os-unsealed"
 build_image := "quay.io/fedora/fedora-bootc:44"
 
 _init_output_dir:
@@ -77,9 +74,9 @@ gen-containerfile: _init_output_dir
         -o /build/.output/Containerfile \
         /build/recipes/recipe.yml
 
-# Build bootc compatible container image from BlueBuild template recipes.
+# Build base unsealed bootc image from BlueBuild template recipes.
 [group('container')]
-build-container: _init_output_dir
+build-container-unsealed: _init_output_dir
     #!/usr/bin/env bash
     set -euo pipefail
 
@@ -98,6 +95,14 @@ build-container: _init_output_dir
             podman save -o /build/.output/{{image_name}}-image.tar localhost/{{image_name}}:latest'
 
     podman load -i "{{output_dir}}/{{image_name}}-image.tar"
+
+# Build final sealed UKI bootc image from BlueBuild base image.
+[group('container')]
+build-container-sealed: _validate_container_exists
+    #!/usr/bin/env bash
+    set -euo pipefail
+
+    podman build -f {{justfile_dir()}}/uki/Containerfile.boot -t sean-os-uki-boot .
 
 # Run bootc container image interactively.
 [group('container')]
