@@ -91,6 +91,12 @@ build-qcow2:
 
     $(just _init_output_dir)
 
+    # image-builder container needs to be run as root, non-root image storage DB
+    # conflicts with root one when mounted inside image-builder image.
+    podman image scp \
+        "$USER@localhost::localhost/{{image_name}}:latest" \
+        "root@localhost::localhost/{{image_name}}:latest"
+
     # Rootless builds are supported by image-builder via `--in-vm` flag, but
     # currently fail on Fedora hosts enforcing SELinux.
     #
@@ -98,12 +104,18 @@ build-qcow2:
     # target image as the build container. Secureblue's container policy rejects
     # transport layer of type 'containers-storage' entirely, which prevents the
     # build container from loading target image as an overlay.
-    sudo image-builder build \
-        --bootc-build-ref {{build_image}} \
-        --bootc-ref localhost/{{image_name}}:latest \
+    sudo podman run \
+        --privileged \
+        --rm \
+        -v "{{output_dir}}:/output" \
+        -v "/var/lib/containers/storage:/var/lib/containers/storage" \
+        ghcr.io/osbuild/image-builder:latest \
+        build \
+        --bootc-ref "localhost/{{image_name}}:latest" \
+        --bootc-build-ref "{{build_image}}" \
         --bootc-default-fs btrfs \
+        --output-dir "/output" \
         --output-name "{{image_name}}.qcow2" \
-        --output-dir {{output_dir}} \
         qcow2
 
     sudo chown -R $USER:$USER {{output_dir}}
