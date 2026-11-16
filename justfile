@@ -143,3 +143,22 @@ create-vm:
         --import \
         --graphics spice \
         --autoconsole graphical
+
+# Show virsh commands used in VM lifecycle.
+[group('vm')]
+vm-commands:
+    #!/usr/bin/env bash
+    set -euo pipefail
+
+    cat << EOF
+    virsh list          - Show available VMs
+    virsh start <vm>    - Boot target VM.
+    virsh shutdown <vm> - Gracefully shutdown target VM.
+    virsh destroy <vm>  - Hard shutdown target VM.
+    virsh reboot <vm>   - Gracefully reboot target VM.
+    virsh reset <vm>    - Hard reboot target VM.
+    virsh suspend <vm>  - Pause active VM without releasing its RAM state.
+    virsh resume <vm>   - Unpause target suspended VM.
+    virsh undefine <vm> - Destroy VM definition and release it from namespace.
+    virt-viewer <vm>    - Connect to graphical session for running target VM.
+    EOF
