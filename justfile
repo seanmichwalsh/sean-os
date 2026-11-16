@@ -73,10 +73,14 @@ build-container: _init_output_dir
     #!/usr/bin/env bash
     set -euo pipefail
 
+    mkdir -p {{output_dir}}/bluebuild-storage
+    rm -f "{{output_dir}}/{{image_name}}-image.tar"
+
     podman run \
         --privileged \
         --rm \
         --entrypoint /bin/sh \
+        -v "{{output_dir}}/bluebuild-storage:/var/lib/containers/storage" \
         -v "{{justfile_dir()}}:/build" \
         -w /build \
         ghcr.io/blue-build/cli:latest \
