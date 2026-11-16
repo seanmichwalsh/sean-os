@@ -64,11 +64,17 @@ build-container:
     set -euo pipefail
 
     $(just _init_output_dir)
-    bluebuild build \
-        --build-driver podman \
-        --run-driver podman \
-        --tempdir {{output_dir}} \
-        {{recipe_file}}
+    podman run \
+        --privileged \
+        --rm \
+        --entrypoint /bin/sh \
+        -v "{{justfile_dir()}}:/build" \
+        -w /build \
+        ghcr.io/blue-build/cli:latest \
+        -ec 'bluebuild build --build-driver podman --run-driver podman /build/recipes/recipe.yml &&
+            podman save -o /build/.output/{{image_name}}-image.tar localhost/{{image_name}}:latest'
+
+    podman load -i "{{output_dir}}/{{image_name}}-image.tar"
 
 # Run bootc container image interactively.
 [group('container')]
