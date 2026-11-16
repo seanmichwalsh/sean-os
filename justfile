@@ -13,6 +13,26 @@ _init_output_dir:
 
     mkdir -p {{output_dir}}
 
+_validate_container_exists:
+    #!/usr/bin/env bash
+    set -euo pipefail
+
+    if ! podman image exists localhost/{{image_name}}:latest; then
+        echo "ERROR: Container image 'localhost/{{image_name}}:latest' not found." \
+             "Build it with 'just build-container'."
+        exit 1
+    fi
+
+_validate_image_exists:
+    #!/usr/bin/env bash
+    set -euo pipefail
+
+    if [[ ! -f "{{output_dir}}/{{image_name}}.qcow2" ]]; then
+        echo "ERROR: qcow2 image {{output_dir}}/{{image_name}}.qcow2 not found." \
+             "Build it with 'just build-qcow2'."
+        exit 1
+    fi
+
 # Remove build directory and output files.
 [group('environment')]
 clean:
@@ -50,20 +70,18 @@ install-deps:
 
 # Generate raw Containerfile from BlueBuild template recipes.
 [group('container')]
-gen-containerfile:
+gen-containerfile: _init_output_dir
     #!/usr/bin/env bash
     set -euo pipefail
 
-    $(just _init_output_dir)
     bluebuild generate -o {{container_file}} {{recipe_file}}
 
 # Build bootc compatible container image from BlueBuild template recipes.
 [group('container')]
-build-container:
+build-container: _init_output_dir
     #!/usr/bin/env bash
     set -euo pipefail
 
-    $(just _init_output_dir)
     podman run \
         --privileged \
         --rm \
@@ -78,24 +96,17 @@ build-container:
 
 # Run bootc container image interactively.
 [group('container')]
-run-container:
+run-container: _validate_container_exists
     #!/usr/bin/env bash
     set -euo pipefail
 
-    if ! podman image exists localhost/{{image_name}}:latest; then
-        echo "ERROR: Image 'localhost/{{image_name}}:latest' not found." \
-             "Build it with 'just build-container'."
-        exit 1
-    fi
     podman run -it localhost/{{image_name}}:latest /bin/bash
 
 # Build a qcow2 image from the container image.
 [group('vm')]
-build-qcow2:
+build-qcow2: _init_output_dir _validate_container_exists
     #!/usr/bin/env bash
     set -euo pipefail
-
-    $(just _init_output_dir)
 
     # image-builder container needs to be run as root, non-root image storage DB
     # conflicts with root one when mounted inside image-builder image.
@@ -128,7 +139,7 @@ build-qcow2:
 
 # Boot a qcow2 image in a QEMU VM.
 [group('vm')]
-create-vm:
+create-vm: _validate_image_exists
     #!/usr/bin/env bash
     set -euo pipefail
 
