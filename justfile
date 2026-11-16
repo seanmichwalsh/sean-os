@@ -65,7 +65,17 @@ gen-containerfile: _init_output_dir
     #!/usr/bin/env bash
     set -euo pipefail
 
-    bluebuild generate -o {{container_file}} {{recipe_file}}
+    podman run \
+        --privileged \
+        --rm \
+        --entrypoint bluebuild \
+        -v "{{output_dir}}/bluebuild-storage:/var/lib/containers/storage" \
+        -v "{{justfile_dir()}}:/build" \
+        -w /build \
+        ghcr.io/blue-build/cli:latest \
+        generate \
+        -o /build/.output/Containerfile \
+        /build/recipes/recipe.yml
 
 # Build bootc compatible container image from BlueBuild template recipes.
 [group('container')]
