@@ -47,25 +47,16 @@ install-deps:
     #!/usr/bin/env bash
     set -euo pipefail
 
-    if [ ! -f /etc/os-release ] || ! grep -q '^ID=fedora' /etc/os-release; then
-        echo "ERROR: Build host is expected to be Fedora Linux."
-        exit 1
-    fi
-    if (! command -v rustc || ! command -v cargo) >/dev/null 2>&1; then
-        echo "ERROR: Rust toolchain and cargo must be present."
-        exit 1
-    fi
-
-    for pkg in podman image-builder libvirt virt-install; do
-        if ! dnf list --installed $pkg >/dev/null 2>&1; then
-            echo "Installing RPM package $pkg..."
+    for pkg in podman libvirt virt-install; do
+        if grep -q '^ID=fedora' /etc/os-release >/dev/null 2>&1; then
             sudo dnf install $pkg
+        elif grep -q '^ID=ubuntu' /etc/os-release >/dev/null 2>&1; then
+            sudo apt install $pkg
+        else
+            echo "ERROR: Only Fedora and Ubuntu are supported as build environments."
+            exit 1
         fi
     done
-    if ! (cargo install --list | grep blue-build >/dev/null 2>&1); then
-        echo "Installing cargo crate blue-build..."
-        cargo install blue-build
-    fi
     echo "All dependencies installed."
 
 # Generate raw Containerfile from BlueBuild template recipes.
