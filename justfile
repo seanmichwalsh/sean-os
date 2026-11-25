@@ -1,11 +1,10 @@
+import 'vars.just'
+
 set default-list := true
 
 output_dir := f"{{justfile_dir()}}/.output"
 container_file := f"{{output_dir}}/Containerfile"
 recipe_file := f"{{justfile_dir()}}/recipes/recipe.yml"
-
-image_name := "sean-os"
-build_image := "quay.io/fedora/fedora-bootc:44"
 
 _init_output_dir:
     #!/usr/bin/env bash
@@ -72,7 +71,7 @@ gen-containerfile: _init_output_dir
         -v "{{output_dir}}/bluebuild-storage:/var/lib/containers/storage" \
         -v "{{justfile_dir()}}:/build" \
         -w /build \
-        ghcr.io/blue-build/cli:latest \
+        {{bluebuild_image}} \
         generate \
         -o /build/.output/Containerfile \
         /build/recipes/recipe.yml
@@ -93,7 +92,7 @@ build-container: _init_output_dir
         -v "{{output_dir}}/bluebuild-storage:/var/lib/containers/storage" \
         -v "{{justfile_dir()}}:/build" \
         -w /build \
-        ghcr.io/blue-build/cli:latest \
+        {{bluebuild_image}} \
         -ec 'bluebuild build --build-driver podman --run-driver podman /build/recipes/recipe.yml &&
             podman save -o /build/.output/{{image_name}}-image.tar localhost/{{image_name}}:latest'
 
@@ -131,7 +130,7 @@ build-qcow2: _init_output_dir _validate_container_exists
         --rm \
         -v "{{output_dir}}:/output" \
         -v "/var/lib/containers/storage:/var/lib/containers/storage" \
-        ghcr.io/osbuild/image-builder:latest \
+        {{osbuild_image}} \
         build \
         --bootc-ref "localhost/{{image_name}}:latest" \
         --bootc-build-ref "{{build_image}}" \
